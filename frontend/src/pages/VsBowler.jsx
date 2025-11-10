@@ -1,0 +1,195 @@
+import React, { useState, useEffect } from 'react'
+import Select from 'react-select'
+import { getBatterVsBowler, searchPlayers } from '../services/api'
+
+const VsBowler = () => {
+  const [players, setPlayers] = useState([])
+  const [selectedBatter, setSelectedBatter] = useState(null)
+  const [selectedBowler, setSelectedBowler] = useState(null)
+  const [matchupData, setMatchupData] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    loadPlayers()
+  }, [])
+
+  const loadPlayers = async () => {
+    try {
+      const response = await searchPlayers()
+      setPlayers(response.data.data || [])
+    } catch (err) {
+      console.error('Error loading players:', err)
+    }
+  }
+
+  const loadMatchup = async () => {
+    if (!selectedBatter || !selectedBowler) {
+      alert('Please select both batter and bowler')
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await getBatterVsBowler(selectedBatter.value, selectedBowler.value)
+      setMatchupData(response.data)
+    } catch (err) {
+      alert('Error loading matchup data or no data found for this matchup')
+      setMatchupData(null)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="page-container">
+      <div className="page-header">
+        <h1 className="page-title">Batter vs Bowler</h1>
+        <p className="page-subtitle">Head-to-head matchup statistics</p>
+      </div>
+
+      <div className="card">
+        <h3 className="card-title mb-3">Select Matchup</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+          <div className="form-group">
+            <label className="form-label">Batter</label>
+            <Select
+              value={selectedBatter}
+              onChange={setSelectedBatter}
+              options={players.map(p => ({ value: p, label: p }))}
+              placeholder="Search for a batter..."
+              isClearable
+              isSearchable
+              styles={{
+                control: (base) => ({
+                  ...base,
+                  minHeight: '42px',
+                  borderColor: '#e1e8ed'
+                }),
+                menu: (base) => ({
+                  ...base,
+                  zIndex: 100
+                })
+              }}
+            />
+          </div>
+          <div className="form-group">
+            <label className="form-label">Bowler</label>
+            <Select
+              value={selectedBowler}
+              onChange={setSelectedBowler}
+              options={players.map(p => ({ value: p, label: p }))}
+              placeholder="Search for a bowler..."
+              isClearable
+              isSearchable
+              styles={{
+                control: (base) => ({
+                  ...base,
+                  minHeight: '42px',
+                  borderColor: '#e1e8ed'
+                }),
+                menu: (base) => ({
+                  ...base,
+                  zIndex: 100
+                })
+              }}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+            <button
+              className="btn btn-primary"
+              onClick={loadMatchup}
+              disabled={!selectedBatter || !selectedBowler}
+            >
+              Load Matchup
+            </button>
+          </div>
+        </div>
+
+        {loading && <div className="loading">Loading matchup data...</div>}
+
+        {!loading && matchupData && matchupData.overall_stats && (
+          <>
+            <div className="mt-4">
+              <h4 className="mb-3">{matchupData.batter} vs {matchupData.bowler}</h4>
+              <div className="stats-grid">
+                <div className="stat-card">
+                  <div className="stat-label">Matches</div>
+                  <div className="stat-value">{matchupData.overall_stats.matches}</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-label">Balls Faced</div>
+                  <div className="stat-value">{matchupData.overall_stats.balls_faced}</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-label">Runs Scored</div>
+                  <div className="stat-value">{matchupData.overall_stats.runs_scored}</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-label">Dismissals</div>
+                  <div className="stat-value">{matchupData.overall_stats.dismissals}</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-label">Average</div>
+                  <div className="stat-value">{matchupData.overall_stats.average || 'N/A'}</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-label">Strike Rate</div>
+                  <div className="stat-value">{matchupData.overall_stats.strike_rate}</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-label">Fours</div>
+                  <div className="stat-value">{matchupData.overall_stats.fours}</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-label">Sixes</div>
+                  <div className="stat-value">{matchupData.overall_stats.sixes}</div>
+                </div>
+              </div>
+            </div>
+
+            {matchupData.encounters && matchupData.encounters.length > 0 && (
+              <div className="mt-4">
+                <h4 className="mb-2">Match-by-Match Encounters</h4>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Venue</th>
+                      <th>Team</th>
+                      <th>Balls</th>
+                      <th>Runs</th>
+                      <th>Strike Rate</th>
+                      <th>Result</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {matchupData.encounters.map((match, index) => (
+                      <tr key={index}>
+                        <td>{match.match_date ? match.match_date.replace(/"/g, '') : 'N/A'}</td>
+                        <td>{match.venue}</td>
+                        <td>{match.batting_team}</td>
+                        <td>{match.balls_faced}</td>
+                        <td>{match.runs_scored}</td>
+                        <td>{match.strike_rate}</td>
+                        <td>
+                          <span style={{
+                            color: match.result === 'Dismissed' ? '#dc3545' : '#28a745',
+                            fontWeight: 'bold'
+                          }}>
+                            {match.result}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default VsBowler

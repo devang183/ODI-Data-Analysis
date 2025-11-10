@@ -1,0 +1,174 @@
+import React, { useState, useEffect } from 'react'
+import Select from 'react-select'
+import { getPlayerDismissalPatterns, searchPlayers } from '../services/api'
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts'
+
+const COLORS = ['#0066cc', '#28a745', '#ffc107', '#dc3545', '#6c757d', '#17a2b8', '#fd7e14']
+
+const DismissalPatterns = () => {
+  const [players, setPlayers] = useState([])
+  const [selectedPlayer, setSelectedPlayer] = useState(null)
+  const [dismissalData, setDismissalData] = useState(null)
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    loadPlayers()
+  }, [])
+
+  const loadPlayers = async () => {
+    try {
+      const response = await searchPlayers()
+      setPlayers(response.data.data || [])
+    } catch (err) {
+      console.error('Error loading players:', err)
+    }
+  }
+
+  const loadDismissalPatterns = async () => {
+    if (!selectedPlayer) return
+
+    setLoading(true)
+    try {
+      const response = await getPlayerDismissalPatterns(selectedPlayer.value)
+      setDismissalData(response.data)
+    } catch (err) {
+      alert('Error loading dismissal patterns')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const formatChartData = (summary) => {
+    return summary.map(item => ({
+      name: item.dismissal_type,
+      value: parseInt(item.count),
+      percentage: parseFloat(item.percentage)
+    }))
+  }
+
+  return (
+    <div className="page-container">
+      <div className="page-header">
+        <h1 className="page-title">Dismissal Patterns</h1>
+        <p className="page-subtitle">Analyze how players get dismissed</p>
+      </div>
+
+      <div className="card">
+        <h3 className="card-title mb-3">Player Dismissal Analysis</h3>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <div className="form-group" style={{ flex: 1 }}>
+            <label className="form-label">Select Player</label>
+            <Select
+              value={selectedPlayer}
+              onChange={setSelectedPlayer}
+              options={players.map(p => ({ value: p, label: p }))}
+              placeholder="Search for a player..."
+              isClearable
+              isSearchable
+              styles={{
+                control: (base) => ({
+                  ...base,
+                  minHeight: '42px',
+                  borderColor: '#e1e8ed'
+                }),
+                menu: (base) => ({
+                  ...base,
+                  zIndex: 100
+                })
+              }}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+            <button
+              className="btn btn-primary"
+              onClick={loadDismissalPatterns}
+              disabled={!selectedPlayer}
+            >
+              Load Data
+            </button>
+          </div>
+        </div>
+
+        {loading && <div className="loading">Loading dismissal patterns...</div>}
+
+        {!loading && dismissalData && dismissalData.dismissal_summary.length > 0 && (
+          <>
+            <div className="mt-4">
+              <h4 className="mb-3">Dismissal Types Distribution</h4>
+              <ResponsiveContainer width="100%" height={400}>
+                <PieChart>
+                  <Pie
+                    data={formatChartData(dismissalData.dismissal_summary)}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    label={(entry) => `${entry.name}: ${entry.percentage}%`}
+                    outerRadius={120}
+                    fill="#8884d8"
+                    dataKey="value"
+                  >
+                    {formatChartData(dismissalData.dismissal_summary).map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+
+            <div className="mt-4">
+              <h4 className="mb-2">Dismissal Summary</h4>
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Dismissal Type</th>
+                    <th>Count</th>
+                    <th>Percentage</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dismissalData.dismissal_summary.map((item) => (
+                    <tr key={item.dismissal_type}>
+                      <td><strong>{item.dismissal_type}</strong></td>
+                      <td>{item.count}</td>
+                      <td>{item.percentage}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {dismissalData.dismissal_details.length > 0 && (
+              <div className="mt-4">
+                <h4 className="mb-2">Dismissals by Bowler</h4>
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Bowler</th>
+                      <th>Dismissal Type</th>
+                      <th>Count</th>
+                      <th>Percentage</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dismissalData.dismissal_details.slice(0, 20).map((item, index) => (
+                      <tr key={index}>
+                        <td><strong>{item.bowler}</strong></td>
+                        <td>{item.dismissal_type}</td>
+                        <td>{item.count}</td>
+                        <td>{item.percentage}%</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default DismissalPatterns

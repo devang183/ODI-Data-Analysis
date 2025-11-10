@@ -1,0 +1,201 @@
+import React, { useState, useEffect } from 'react'
+import Select from 'react-select'
+import { getPlayerBowlingStats, getBowlingLeaderboard, searchPlayers } from '../services/api'
+import PlayerProfile from '../components/PlayerProfile'
+
+const BowlingStats = () => {
+  const [players, setPlayers] = useState([])
+  const [selectedPlayer, setSelectedPlayer] = useState(null)
+  const [playerStats, setPlayerStats] = useState(null)
+  const [playerProfile, setPlayerProfile] = useState(null)
+  const [leaderboard, setLeaderboard] = useState([])
+  const [loading, setLoading] = useState(false)
+  const [sortBy, setSortBy] = useState('wickets')
+
+  useEffect(() => {
+    loadPlayers()
+    loadLeaderboard()
+  }, [])
+
+  useEffect(() => {
+    if (sortBy) {
+      loadLeaderboard()
+    }
+  }, [sortBy])
+
+  const loadPlayers = async () => {
+    try {
+      const response = await searchPlayers()
+      setPlayers(response.data.data || [])
+    } catch (err) {
+      console.error('Error loading players:', err)
+    }
+  }
+
+  const loadLeaderboard = async () => {
+    setLoading(true)
+    try {
+      const response = await getBowlingLeaderboard({ sort_by: sortBy, limit: 20 })
+      setLeaderboard(response.data.data || [])
+    } catch (err) {
+      console.error('Error loading leaderboard:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const loadPlayerStats = async () => {
+    if (!selectedPlayer) return
+
+    setLoading(true)
+    try {
+      const response = await getPlayerBowlingStats(selectedPlayer.value)
+      setPlayerStats(response.data.stats)
+      setPlayerProfile(response.data.profile)
+    } catch (err) {
+      alert('Error loading player stats')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="page-container">
+      <div className="page-header">
+        <h1 className="page-title">Bowling Statistics</h1>
+        <p className="page-subtitle">Explore player bowling performance</p>
+      </div>
+
+      <div className="card">
+        <h3 className="card-title mb-3">Player Stats</h3>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          <div className="form-group" style={{ flex: 1 }}>
+            <label className="form-label">Select Player</label>
+            <Select
+              value={selectedPlayer}
+              onChange={setSelectedPlayer}
+              options={players.map(p => ({ value: p, label: p }))}
+              placeholder="Search for a player..."
+              isClearable
+              isSearchable
+              styles={{
+                control: (base) => ({
+                  ...base,
+                  minHeight: '42px',
+                  borderColor: '#e1e8ed'
+                }),
+                menu: (base) => ({
+                  ...base,
+                  zIndex: 100
+                })
+              }}
+            />
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+            <button
+              className="btn btn-primary"
+              onClick={loadPlayerStats}
+              disabled={!selectedPlayer}
+            >
+              Load Stats
+            </button>
+          </div>
+        </div>
+
+        {playerProfile && <PlayerProfile profile={playerProfile} />}
+
+        {playerStats && (
+          <div className="stats-grid mt-3">
+            <div className="stat-card">
+              <div className="stat-label">Matches</div>
+              <div className="stat-value">{playerStats.matches_played}</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Wickets</div>
+              <div className="stat-value">{playerStats.total_wickets}</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Average</div>
+              <div className="stat-value">{playerStats.bowling_average || 'N/A'}</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Economy</div>
+              <div className="stat-value">{playerStats.economy_rate}</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Strike Rate</div>
+              <div className="stat-value">{playerStats.bowling_strike_rate || 'N/A'}</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Overs</div>
+              <div className="stat-value">{playerStats.overs_bowled}</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Dot Balls</div>
+              <div className="stat-value">{playerStats.dot_balls}</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-label">Dot Ball %</div>
+              <div className="stat-value">{playerStats.dot_ball_percentage}%</div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className="card">
+        <div className="card-header">
+          <h3 className="card-title">Top Bowlers</h3>
+          <div className="form-group" style={{ margin: 0, minWidth: '200px' }}>
+            <select
+              className="form-select"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+            >
+              <option value="wickets">Most Wickets</option>
+              <option value="average">Best Average</option>
+              <option value="economy">Best Economy</option>
+              <option value="strike_rate">Best Strike Rate</option>
+            </select>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="loading">Loading leaderboard...</div>
+        ) : (
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Player</th>
+                <th>Matches</th>
+                <th>Overs</th>
+                <th>Wickets</th>
+                <th>Runs</th>
+                <th>Average</th>
+                <th>Economy</th>
+                <th>Strike Rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              {leaderboard.map((player, index) => (
+                <tr key={player.player_name}>
+                  <td>{index + 1}</td>
+                  <td><strong>{player.player_name}</strong></td>
+                  <td>{player.matches}</td>
+                  <td>{player.overs}</td>
+                  <td>{player.wickets}</td>
+                  <td>{player.runs_conceded}</td>
+                  <td>{player.average || 'N/A'}</td>
+                  <td>{player.economy}</td>
+                  <td>{player.strike_rate || 'N/A'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default BowlingStats

@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.pyc
+
+# Virtual Environment
+backend/venv/
+venv/
+env/
+ENV/
+
+# Environment variables
+.env
+backend/.env
+
+# Backup files
+*.backup
+*.old
+*_fixed.py
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.vite/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3

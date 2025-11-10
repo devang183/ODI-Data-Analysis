@@ -1,0 +1,176 @@
+import React, { useState, useEffect } from 'react'
+import { getPlayerPhasePerformance, getPlayerBowlingPhasePerformance, searchPlayers } from '../services/api'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+
+const PhasePerformance = () => {
+  const [players, setPlayers] = useState([])
+  const [selectedPlayer, setSelectedPlayer] = useState('')
+  const [statsType, setStatsType] = useState('batting')
+  const [phaseData, setPhaseData] = useState([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    loadPlayers()
+  }, [])
+
+  const loadPlayers = async () => {
+    try {
+      const response = await searchPlayers()
+      setPlayers(response.data.data || [])
+    } catch (err) {
+      console.error('Error loading players:', err)
+    }
+  }
+
+  const loadPhaseStats = async () => {
+    if (!selectedPlayer) return
+
+    setLoading(true)
+    try {
+      const response = statsType === 'batting'
+        ? await getPlayerPhasePerformance(selectedPlayer)
+        : await getPlayerBowlingPhasePerformance(selectedPlayer)
+
+      setPhaseData(response.data.phases || [])
+    } catch (err) {
+      alert('Error loading phase performance')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="page-container">
+      <div className="page-header">
+        <h1 className="page-title">Phase Performance</h1>
+        <p className="page-subtitle">Analyze performance across match phases</p>
+      </div>
+
+      <div className="card">
+        <h3 className="card-title mb-3">Player Phase Analysis</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+          <div className="form-group">
+            <label className="form-label">Select Player</label>
+            <select
+              className="form-select"
+              value={selectedPlayer}
+              onChange={(e) => setSelectedPlayer(e.target.value)}
+            >
+              <option value="">Choose a player...</option>
+              {players.map((player) => (
+                <option key={player} value={player}>{player}</option>
+              ))}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Stats Type</label>
+            <select
+              className="form-select"
+              value={statsType}
+              onChange={(e) => setStatsType(e.target.value)}
+            >
+              <option value="batting">Batting</option>
+              <option value="bowling">Bowling</option>
+            </select>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+            <button
+              className="btn btn-primary"
+              onClick={loadPhaseStats}
+              disabled={!selectedPlayer}
+            >
+              Load Stats
+            </button>
+          </div>
+        </div>
+
+        {loading && <div className="loading">Loading phase performance...</div>}
+
+        {!loading && phaseData.length > 0 && (
+          <>
+            <div className="mb-4">
+              <h4 className="mb-2">Performance by Phase</h4>
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={phaseData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="phase" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  {statsType === 'batting' ? (
+                    <>
+                      <Bar dataKey="runs_scored" fill="#0066cc" name="Runs" />
+                      <Bar dataKey="strike_rate" fill="#28a745" name="Strike Rate" />
+                    </>
+                  ) : (
+                    <>
+                      <Bar dataKey="wickets" fill="#0066cc" name="Wickets" />
+                      <Bar dataKey="economy" fill="#28a745" name="Economy" />
+                    </>
+                  )}
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Phase</th>
+                  {statsType === 'batting' ? (
+                    <>
+                      <th>Balls</th>
+                      <th>Runs</th>
+                      <th>Strike Rate</th>
+                      <th>4s</th>
+                      <th>6s</th>
+                      <th>Dots</th>
+                      <th>Dot %</th>
+                    </>
+                  ) : (
+                    <>
+                      <th>Overs</th>
+                      <th>Runs</th>
+                      <th>Wickets</th>
+                      <th>Economy</th>
+                      <th>Average</th>
+                      <th>Dot %</th>
+                    </>
+                  )}
+                </tr>
+              </thead>
+              <tbody>
+                {phaseData.map((phase) => (
+                  <tr key={phase.phase}>
+                    <td><strong>{phase.phase}</strong></td>
+                    {statsType === 'batting' ? (
+                      <>
+                        <td>{phase.balls_faced}</td>
+                        <td>{phase.runs_scored}</td>
+                        <td>{phase.strike_rate}</td>
+                        <td>{phase.fours}</td>
+                        <td>{phase.sixes}</td>
+                        <td>{phase.dots}</td>
+                        <td>{phase.dot_ball_percentage}%</td>
+                      </>
+                    ) : (
+                      <>
+                        <td>{phase.overs}</td>
+                        <td>{phase.runs_conceded}</td>
+                        <td>{phase.wickets}</td>
+                        <td>{phase.economy}</td>
+                        <td>{phase.average || 'N/A'}</td>
+                        <td>{phase.dot_ball_percentage}%</td>
+                      </>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export default PhasePerformance
