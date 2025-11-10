@@ -2,14 +2,12 @@ databases:
   - name: odi-cricket-db
     databaseName: odi_cricket
     user: odi_user
-    plan: free
 
 services:
   # Flask Backend API
   - type: web
     name: odi-cricket-backend
     runtime: python
-    plan: free
     buildCommand: "cd backend && pip install -r requirements.txt"
     startCommand: "cd backend && gunicorn app:app"
     envVars:
@@ -43,7 +41,6 @@ services:
   - type: web
     name: odi-cricket-frontend
     runtime: static
-    plan: free
     buildCommand: "cd frontend && npm install && npm run build"
     staticPublishPath: ./frontend/dist
     envVars:
