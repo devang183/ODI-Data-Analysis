@@ -1,3 +1,4 @@
+# Backend deployment on Render (Frontend on Vercel)
 databases:
   - name: odi-cricket-db
     databaseName: odi_cricket
@@ -36,20 +37,3 @@ services:
       - key: FLASK_ENV
         value: production
     healthCheckPath: /api/health
-
-  # React Frontend
-  - type: web
-    name: odi-cricket-frontend
-    runtime: static
-    buildCommand: "cd frontend && npm install && npm run build"
-    staticPublishPath: ./frontend/dist
-    envVars:
-      - key: VITE_API_BASE_URL
-        fromService:
-          type: web
-          name: odi-cricket-backend
-          envVarKey: RENDER_EXTERNAL_URL
-    routes:
-      - type: rewrite
-        source: /*
-        destination: /index.html
